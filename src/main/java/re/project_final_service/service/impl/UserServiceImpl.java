@@ -5,6 +5,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import re.project_final_service.model.dto.request.auth.UserDto;
 import re.project_final_service.model.entity.User;
+import re.project_final_service.model.entity.myEnum.Role;
 import re.project_final_service.repo.UserRepo;
 import re.project_final_service.service.UserService;
 
@@ -17,11 +18,13 @@ public class UserServiceImpl implements UserService {
     @Override
     public User register(UserDto userDto) {
         if (userRepo.existsByEmail(userDto.getEmail())) {
-            throw new RuntimeException("Email already exists");
+            throw new RuntimeException("Email đã được đăng ký");
         }
 
         if (userDto.getRole() == null) {
             throw new RuntimeException("Role is required");
+        } else if (userDto.getRole() == Role.ADMIN) {
+            throw new RuntimeException("Không thể đăng ký với role ADMIN");
         }
 
         String hashed = passwordEncoder.encode(userDto.getPasswordHash());
@@ -35,7 +38,6 @@ public class UserServiceImpl implements UserService {
                 .build();
 
         return userRepo.save(user);
-        return user;
     }
 
     @Override
