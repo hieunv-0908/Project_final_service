@@ -24,6 +24,8 @@ public class RefreshToken {
     @Column(nullable = false)
     private Instant expiryDate;
 
+    private boolean revoked = false;
+
     @ManyToOne
     @JoinColumn(name = "user_id")
     private User user;

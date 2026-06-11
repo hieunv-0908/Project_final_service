@@ -1,5 +1,6 @@
 package re.project_final_service.service.impl;
 
+import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
@@ -38,11 +39,21 @@ public class RefreshTokenService {
         return refreshTokenRepository.findByToken(token);
     }
 
+    @Transactional
     public void delete(RefreshToken refreshToken) {
         refreshTokenRepository.delete(refreshToken);
     }
 
+    @Transactional
     public void deleteByUser(User user) {
+        System.out.println("DELETE REFRESH TOKEN OF USER = " + user.getEmail());
         refreshTokenRepository.deleteByUser(user);
+    }
+
+    @Transactional
+    public void revokeToken(RefreshToken refreshToken) {
+        refreshToken.setRevoked(true);
+        refreshTokenRepository.save(refreshToken);
+        System.out.println("REVOKED REFRESH TOKEN = " + refreshToken.getToken());
     }
 }
