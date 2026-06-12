@@ -26,9 +26,8 @@ public class User {
     private String username;
     @Column(unique = true)
     private String email;
-    private String passwordHash;
     @Column(name = "password", nullable = false)
-    private String password;
+    private String passwordHash;
     private Role role;
     @Column(name = "enabled", nullable = false)
     @Builder.Default

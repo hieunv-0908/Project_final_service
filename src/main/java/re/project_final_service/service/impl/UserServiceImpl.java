@@ -24,7 +24,7 @@ public class UserServiceImpl implements UserService {
         if (userDto.getRole() == null) {
             throw new RuntimeException("Role is required");
         } else if (userDto.getRole() == Role.ADMIN) {
-            throw new RuntimeException("Không thể đăng ký với role ADMIN");
+            throw new RuntimeException("Không được đăng ký với role ADMIN");
         }
 
         String hashed = passwordEncoder.encode(userDto.getPasswordHash());
@@ -32,11 +32,10 @@ public class UserServiceImpl implements UserService {
         User user = User.builder()
                 .username(userDto.getEmail())
                 .email(userDto.getEmail())
-                .password(hashed)
+                .passwordHash(hashed)
                 .role(userDto.getRole())
                 .isActive(true)
                 .build();
-
         return userRepo.save(user);
     }
 
@@ -52,6 +51,8 @@ public class UserServiceImpl implements UserService {
 
     @Override
     public User changePassword(User user, String newPassword) {
-        return null;
+        String hashed = passwordEncoder.encode(newPassword);
+        user.setPasswordHash(hashed);
+        return userRepo.save(user);
     }
 }
