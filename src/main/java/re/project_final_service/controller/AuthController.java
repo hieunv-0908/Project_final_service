@@ -103,11 +103,7 @@ public class AuthController {
                         .user(u)
                         .build();
 
-                // THÊM: Revoke tất cả refresh token của user
-                // (thay vì chỉ delete)
                 refreshTokenService.deleteByUser(u);
-
-                tokenBlackListRepo.save(tb);
             }
         }else{
             throw new RuntimeException("Không tìm thấy token");
@@ -127,19 +123,12 @@ public class AuthController {
                                 () -> new RuntimeException("Refresh token không hợp lệ")
                         );
 
-        // THÊM KIỂM TRA: Nếu token đã bị revoke
-        if (oldToken.isRevoked()) {
-            throw new RuntimeException("Refresh token đã bị vô hiệu hóa");
-        }
-
         if (oldToken.getExpiryDate().isBefore(Instant.now())) {
             throw new RuntimeException("Refresh token hết hạn");
         }
 
         User user = oldToken.getUser();
 
-        // SỬA: Thay vì chỉ delete, thêm revoke trước
-        oldToken.setRevoked(true);
         refreshTokenService.delete(oldToken);
 
         RefreshToken newToken =
@@ -159,7 +148,6 @@ public class AuthController {
         String accessToken =
                 jwtTokenProvider.generateAccessToken(authentication);
 
-        // SỬA: Trả về chỉ token string (nhất quán với response)
         return ResponseEntity.ok(
                 Map.of(
                         "accessToken", accessToken,
