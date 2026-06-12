@@ -30,6 +30,7 @@ import re.project_final_service.model.entity.User;
 import re.project_final_service.repo.TokenBlackListRepo;
 import re.project_final_service.repo.UserRepo;
 import re.project_final_service.security.JwtTokenProvider;
+import re.project_final_service.service.impl.RedisBlacklistService;
 import re.project_final_service.service.impl.RefreshTokenService;
 import re.project_final_service.service.impl.UserServiceImpl;
 import re.project_final_service.service.PasswordResetService;
@@ -38,6 +39,7 @@ import org.springframework.security.core.context.SecurityContextHolder;
 
 import java.time.Instant;
 import java.time.LocalDateTime;
+import java.util.Date;
 import java.util.Map;
 
 @RestController
@@ -47,7 +49,7 @@ public class AuthController {
     private final UserServiceImpl userService;
     private final UserDetailsService userDetailsService;
     private final JwtTokenProvider jwtTokenProvider;
-    private final TokenBlackListRepo tokenBlackListRepo;
+    private final RedisBlacklistService redisBlacklistService;
     private final UserRepo userRepo;
     private final PasswordEncoder passwordEncoder;
     private final RefreshTokenService refreshTokenService;
@@ -74,7 +76,6 @@ public class AuthController {
             throw new UsernameNotFoundException("Thông tin đăng nhập không đúng");
         }
 
-
         Authentication authentication = new UsernamePasswordAuthenticationToken(userDetails, null, userDetails.getAuthorities());
         String accessToken = jwtTokenProvider.generateAccessToken(authentication);
         User user = userRepo.findByEmail(authentication.getName()).orElse(null);
@@ -87,28 +88,34 @@ public class AuthController {
         String header = request.getHeader("Authorization");
         if (header != null && header.startsWith("Bearer ")) {
             String token = header.substring(7);
-            System.out.println("TOKEN = " + token);
 
-            System.out.println(
-                    "VALID = " +
-                            jwtTokenProvider.validateToken(token)
-            );
             if (jwtTokenProvider.validateToken(token)) {
-                String username = jwtTokenProvider.getUsernameFromJwt(token);
-                User u = userRepo.findByEmail(username)
-                        .orElseThrow(() -> new RuntimeException("Không tìm thấy người dùng"));
-                TokenBlacklist tb = TokenBlacklist.builder()
-                        .tokenString(token)
-                        .revokedAt(LocalDateTime.now())
-                        .user(u)
-                        .build();
+                Date expiration =
+                        jwtTokenProvider.getExpirationDate(token);
 
-                refreshTokenService.deleteByUser(u);
+                long remainingTime =
+                        expiration.getTime()
+                                - System.currentTimeMillis();
+                redisBlacklistService.blacklistToken(
+                        token,
+                        remainingTime
+                );
+
+                String username =
+                        jwtTokenProvider.getUsernameFromJwt(token);
+                User user =
+                        userRepo.findByEmail(username)
+                                .orElseThrow(
+                                        () -> new RuntimeException(
+                                                "Không tìm thấy user"
+                                        )
+                                );
+                refreshTokenService.deleteByUser(user);
             }
         }else{
             throw new RuntimeException("Không tìm thấy token");
         }
-        return ResponseEntity.ok(Map.of("message", "logged out"));
+        return ResponseEntity.ok(Map.of("message", "Đăng xuất thành công"));
     }
 
     @Transactional

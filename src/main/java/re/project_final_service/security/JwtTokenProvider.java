@@ -6,6 +6,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import org.springframework.security.core.Authentication;
 
+import javax.crypto.SecretKey;
 import java.security.Key;
 import java.util.Date;
 
@@ -21,7 +22,7 @@ public class JwtTokenProvider {
 	@Value("${jwt.refresh-expiration}")
 	private long jwtExpirationRefreshMs;
 
-	private Key getSigningKey() {
+	private SecretKey getSigningKey() {
 		return Keys.hmacShaKeyFor(jwtSecret.getBytes());
 	}
 
@@ -48,6 +49,16 @@ public class JwtTokenProvider {
 		} catch (JwtException | IllegalArgumentException ex) {
 			return false;
 		}
+	}
+
+	public Date getExpirationDate(String token) {
+
+		return Jwts.parser()
+				.verifyWith(getSigningKey())
+				.build()
+				.parseSignedClaims(token)
+				.getPayload()
+				.getExpiration();
 	}
 }
 
