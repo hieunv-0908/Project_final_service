@@ -40,19 +40,14 @@ public class User {
     @Column(name = "created_at", updatable = false, nullable = false)
     private LocalDateTime createdAt;
 
+    @Column(columnDefinition = "TEXT")
+    private String cvUrl;
+
     @UpdateTimestamp
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
 
     public boolean isActive() {
         return isActive != null && isActive;
-    }
-
-    public void setActive(boolean value) {
-        this.isActive = value;
-    }
-
-    public void setActive(Boolean value) {
-        this.isActive = value;
     }
 }

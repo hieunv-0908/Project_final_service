@@ -20,7 +20,7 @@ public class PasswordResetServiceImpl implements PasswordResetService {
 
     private final PasswordResetTokenRepo tokenRepo;
 
-    @Value("${app.password-reset.token-expiration-minutes:60}")
+    @Value("${app.password-reset.token-expiration-minutes:10}")
     private long tokenExpirationMinutes;
 
     private final SecureRandom secureRandom = new SecureRandom();

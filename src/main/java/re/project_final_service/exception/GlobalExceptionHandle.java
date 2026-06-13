@@ -4,6 +4,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.HttpStatusCode;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
+import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
@@ -49,4 +50,19 @@ public class GlobalExceptionHandle {
                         )
                 );
     }
+
+    @ExceptionHandler(BadCredentialsException.class)
+    public ResponseEntity<APIDataResponse<Object>>
+    handleBadCredentialsException(BadCredentialsException e) {
+
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                .body(
+                        new APIDataResponse<>(
+                                null,
+                                "Sai tài khoản hoặc mật khẩu",
+                                false,
+                                HttpStatus.UNAUTHORIZED
+                        )
+                );
+}
 }

@@ -4,7 +4,6 @@ import org.springframework.stereotype.Service;
 import re.project_final_service.model.dto.request.Job.JobNewPostingDto;
 import re.project_final_service.model.entity.JobPosting;
 
-@Service
 public interface JobPostingService {
     public JobPosting postNewJobPosting(JobNewPostingDto jobNewPostingDto);
     public JobPosting updateJobPosting(JobPosting jobPosting);

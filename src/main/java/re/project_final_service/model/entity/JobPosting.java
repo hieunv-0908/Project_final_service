@@ -7,6 +7,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 import re.project_final_service.model.entity.myEnum.JobStatusEnum;
 
+import static re.project_final_service.model.entity.myEnum.JobStatusEnum.DRAFT;
 import static re.project_final_service.model.entity.myEnum.JobStatusEnum.PENDING_APPROVAL;
 
 @Entity
@@ -44,7 +45,11 @@ public class JobPosting {
      * Trạng thái tin, ví dụ: đang đăng, đã đóng.
      */
     @Builder.Default
-    private JobStatusEnum status = PENDING_APPROVAL;
+    private JobStatusEnum status = DRAFT;
+
+    @Column(nullable = false)
+    @Builder.Default
+    private Boolean deleted = false;
 
     @ManyToOne
     @JoinColumn(name = "employer_id", nullable = false)

@@ -51,4 +51,7 @@ public class Application {
     @ManyToOne
     @JoinColumn(name = "job_posting_id", nullable = false)
     private JobPosting jobPosting;
+
+    @Column(columnDefinition = "TEXT")
+    private String employerFeedback;
 }

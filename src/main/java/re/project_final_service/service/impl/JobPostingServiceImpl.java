@@ -19,8 +19,8 @@ public class JobPostingServiceImpl implements JobPostingService {
     @Override
     public JobPosting postNewJobPosting(JobNewPostingDto jobNewPostingDto) {
         String username = SecurityContextHolder.getContext().getAuthentication().getName();
-        User employer = userRepo.findByEmail(username).orElse(null);
-
+        User employer = userRepo.findByEmail(username)
+                .orElseThrow(() -> new RuntimeException("Employer không tồn tại"));
         JobPosting jobPosting = JobPosting.builder()
                 .title(jobNewPostingDto.getTitle())
                 .description(jobNewPostingDto.getDescription())

@@ -1,5 +1,6 @@
 package re.project_final_service.security;
 
+import io.jsonwebtoken.ExpiredJwtException;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -39,11 +40,44 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 				);
 				return;
 			}
-			if (tokenProvider.validateToken(token)) {
-				String username = tokenProvider.getUsernameFromJwt(token);
-				UserDetails userDetails = userDetailsService.loadUserByUsername(username);
-				Authentication auth = new UsernamePasswordAuthenticationToken(userDetails, null, userDetails.getAuthorities());
-				SecurityContextHolder.getContext().setAuthentication(auth);
+			try {
+
+				if (tokenProvider.validateToken(token)) {
+
+					String username =
+							tokenProvider.getUsernameFromJwt(token);
+
+					UserDetails userDetails =
+							userDetailsService
+									.loadUserByUsername(username);
+
+					Authentication auth =
+							new UsernamePasswordAuthenticationToken(
+									userDetails,
+									null,
+									userDetails.getAuthorities()
+							);
+
+					SecurityContextHolder
+							.getContext()
+							.setAuthentication(auth);
+				}
+
+			} catch (ExpiredJwtException e) {
+
+				response.sendError(
+						HttpServletResponse.SC_UNAUTHORIZED,
+						"Access token đã hết hạn"
+				);
+				return;
+
+			} catch (Exception e) {
+
+				response.sendError(
+						HttpServletResponse.SC_UNAUTHORIZED,
+						"Token không hợp lệ"
+				);
+				return;
 			}
 		}
 		filterChain.doFilter(request, response);

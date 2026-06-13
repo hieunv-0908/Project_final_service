@@ -46,8 +46,14 @@ public class JwtTokenProvider {
 		try {
 			Jwts.parser().setSigningKey(getSigningKey()).build().parseClaimsJws(token);
 			return true;
-		} catch (JwtException | IllegalArgumentException ex) {
-			return false;
+		} catch (ExpiredJwtException e) {
+			throw new RuntimeException("TOKEN_EXPIRED");
+		} catch (MalformedJwtException e) {
+			throw new RuntimeException("TOKEN_MALFORMED");
+		} catch (SignatureException e) {
+			throw new RuntimeException("TOKEN_INVALID_SIGNATURE");
+		} catch (Exception e) {
+			throw new RuntimeException("TOKEN_INVALID");
 		}
 	}
 

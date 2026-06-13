@@ -4,7 +4,6 @@ import org.springframework.stereotype.Service;
 import re.project_final_service.model.dto.request.auth.UserDto;
 import re.project_final_service.model.entity.User;
 
-@Service
 public interface UserService {
     public User register(UserDto userDto);
     public User login(User user);

@@ -6,17 +6,14 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.crypto.password.PasswordEncoder;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
-import re.project_final_service.annotation.LogExecutionTime;
+import org.springframework.web.bind.annotation.*;
 import re.project_final_service.model.dto.request.RefreshRequest;
 import re.project_final_service.model.dto.request.auth.UserDto;
 import re.project_final_service.model.dto.request.auth.UserDtoLogin;
@@ -25,9 +22,7 @@ import re.project_final_service.model.dto.request.auth.ForgotPasswordRequest;
 import re.project_final_service.model.dto.request.auth.ResetPasswordRequest;
 import re.project_final_service.model.dto.response.APIDataResponse;
 import re.project_final_service.model.entity.RefreshToken;
-import re.project_final_service.model.entity.TokenBlacklist;
 import re.project_final_service.model.entity.User;
-import re.project_final_service.repo.TokenBlackListRepo;
 import re.project_final_service.repo.UserRepo;
 import re.project_final_service.security.JwtTokenProvider;
 import re.project_final_service.service.impl.RedisBlacklistService;
@@ -38,13 +33,14 @@ import re.project_final_service.model.entity.PasswordResetToken;
 import org.springframework.security.core.context.SecurityContextHolder;
 
 import java.time.Instant;
-import java.time.LocalDateTime;
 import java.util.Date;
 import java.util.Map;
+import java.util.Optional;
 
 @RestController
 @RequestMapping("/api/v1/auth")
 @RequiredArgsConstructor
+@Transactional
 public class AuthController {
     private final UserServiceImpl userService;
     private final UserDetailsService userDetailsService;
@@ -54,6 +50,7 @@ public class AuthController {
     private final PasswordEncoder passwordEncoder;
     private final RefreshTokenService refreshTokenService;
     private final PasswordResetService passwordResetService;
+    private final AuthenticationManager authenticationManager;
 
     @PostMapping("/register")
     public ResponseEntity<APIDataResponse<User>> register(@Valid @RequestBody UserDto userDto) {
@@ -69,16 +66,10 @@ public class AuthController {
 
     @PostMapping("/login")
     public ResponseEntity<APIDataResponse<Object>> login(@Valid @RequestBody UserDtoLogin login) {
+        Authentication authentication = authenticationManager.authenticate(new UsernamePasswordAuthenticationToken(login.getEmail(), login.getPassword()));
 
-        UserDetails userDetails = userDetailsService.loadUserByUsername(login.getEmail());
-
-        if (!passwordEncoder.matches(login.getPassword(), userDetails.getPassword())) {
-            throw new UsernameNotFoundException("Thông tin đăng nhập không đúng");
-        }
-
-        Authentication authentication = new UsernamePasswordAuthenticationToken(userDetails, null, userDetails.getAuthorities());
         String accessToken = jwtTokenProvider.generateAccessToken(authentication);
-        User user = userRepo.findByEmail(authentication.getName()).orElse(null);
+        User user = userRepo.findByEmail(authentication.getName()).orElseThrow(() -> new UsernameNotFoundException("Không tìm thấy người dùng"));
         RefreshToken refreshToken = refreshTokenService.createRefreshToken(user);
         return ResponseEntity.ok().body(new APIDataResponse<>(Map.of("accessToken", accessToken, "refreshToken", refreshToken.getToken()), "Đăng nhập thành công", true, HttpStatus.OK));
     }
@@ -163,19 +154,17 @@ public class AuthController {
         );
     }
 
-    @PostMapping("/change-password")
-    public ResponseEntity<Object> changePassword(@RequestBody ChangePasswordRequest req) {
-        var auth = SecurityContextHolder.getContext().getAuthentication();
+    @PutMapping("/change-password")
+    public ResponseEntity<Object> changePassword(@Valid @RequestBody ChangePasswordRequest req) {
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
         if (auth == null || !auth.isAuthenticated() || "anonymousUser".equals(auth.getPrincipal())) {
             throw new RuntimeException("Không có quyền");
         }
 
-        String username = auth.getName();
-        User user = userRepo.findByEmail(username).orElseThrow(() -> new RuntimeException("Không tìm thấy người dùng"));
+        String email = auth.getName();
+        User user = userRepo.findByEmail(email).orElseThrow(() -> new RuntimeException("Không tìm thấy người dùng"));
 
-        if (!passwordEncoder.matches(req.getCurrentPassword(), user.getPasswordHash())) {
-            throw new RuntimeException("Mật khẩu hiện tại không đúng");
-        }
+        Authentication authentication = authenticationManager.authenticate(new UsernamePasswordAuthenticationToken(user.getEmail(), req.getCurrentPassword()));
 
         userService.changePassword(user, req.getNewPassword());
 
@@ -183,31 +172,28 @@ public class AuthController {
     }
 
     @PostMapping("/forgot-password")
-    public ResponseEntity<Object> forgotPassword(@RequestBody @Valid ForgotPasswordRequest req) {
-        var opt = userRepo.findByEmail(req.getEmail());
+    public ResponseEntity<Object> forgotPassword(@Valid @RequestBody ForgotPasswordRequest req) {
+        Optional<User> opt = userRepo.findByEmail(req.getEmail());
         if (opt.isPresent()) {
             PasswordResetToken token = passwordResetService.createTokenForUser(opt.get());
-            // In production, send token via email. For now, return token in response for convenience / testing.
             System.out.println("Password reset token for " + req.getEmail() + " -> " + token.getToken());
-            return ResponseEntity.ok(Map.of("message", "Nếu email tồn tại, một token reset đã được tạo", "token", token.getToken()));
+            return ResponseEntity.ok(Map.of("message", "Email hợp lệ, dùng token để cài lại mật khẩu", "token", token.getToken()));
         }
 
-        // Do not reveal whether email exists
-        return ResponseEntity.ok(Map.of("message", "Nếu email tồn tại, một token reset đã được tạo"));
+        return ResponseEntity.ok(Map.of("message", "Email không hợp lệ"));
     }
 
-    @PostMapping("/reset-password")
-    public ResponseEntity<Object> resetPassword(@RequestBody @Valid ResetPasswordRequest req) {
+    @PutMapping("/reset-password")
+    public ResponseEntity<Object> resetPassword(@Valid @RequestBody ResetPasswordRequest req) {
         PasswordResetToken prt = passwordResetService.findByToken(req.getToken()).orElseThrow(() -> new RuntimeException("Token không hợp lệ"));
 
-        if (prt.isRevoked() || prt.getExpiryDate().isBefore(java.time.Instant.now())) {
+        if (prt.isRevoked() || prt.getExpiryDate().isBefore(Instant.now())) {
             throw new RuntimeException("Token đã hết hạn hoặc đã bị thu hồi");
         }
 
         User user = prt.getUser();
         userService.changePassword(user, req.getNewPassword());
 
-        // revoke tokens for the user
         passwordResetService.revokeAllForUser(user);
 
         return ResponseEntity.ok(Map.of("message", "Đặt lại mật khẩu thành công"));
