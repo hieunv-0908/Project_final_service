@@ -30,4 +30,5 @@ public interface ApplicationRepo extends JpaRepository<Application, Long> {
 			Pageable pageable
 	);
 	Page<Application> findByJobPostingId(Long jobPostingId, Pageable pageable);
+
 }

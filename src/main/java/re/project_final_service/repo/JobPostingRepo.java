@@ -39,16 +39,4 @@ public interface JobPostingRepo extends JpaRepository<JobPosting, Long> {
 			Long id,
 			JobStatusEnum status
 	);
-
-	Optional<Application>
-	findByCandidateAndJobPosting(
-			User candidate,
-			JobPosting job
-	);
-
-	Page<Application>
-	findByCandidate(
-			User candidate,
-			Pageable pageable
-	);
 }
